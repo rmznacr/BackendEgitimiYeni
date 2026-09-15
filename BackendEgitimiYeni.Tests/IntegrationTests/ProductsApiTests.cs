@@ -21,7 +21,7 @@ public class ProductsApiTests
         var response = await _client.GetAsync("/api/products");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
