@@ -16,4 +16,11 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="BackendEgitimiYeni.Tests\**\*.cs" />
+    <Content Remove="BackendEgitimiYeni.Tests\**\*" />
+    <EmbeddedResource Remove="BackendEgitimiYeni.Tests\**\*" />
+    <None Remove="BackendEgitimiYeni.Tests\**\*" />
+  </ItemGroup>
+
 </Project>
