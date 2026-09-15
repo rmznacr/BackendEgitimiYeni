@@ -22,10 +22,10 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore BackendEgitimiYeni.Tests/BackendEgitimiYeni.Tests.csproj
 
       - name: Build
-        run: dotnet build --no-restore
+        run: dotnet build BackendEgitimiYeni.Tests/BackendEgitimiYeni.Tests.csproj --no-restore
 
       - name: Run tests
-        run: dotnet test --no-build --verbosity normal
+        run: dotnet test BackendEgitimiYeni.Tests/BackendEgitimiYeni.Tests.csproj --no-build --verbosity normal
