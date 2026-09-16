@@ -1,5 +1,6 @@
 using BackendEgitimiYeni.DTOs;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 namespace BackendEgitimiYeni.Tests.IntegrationTests;
@@ -14,20 +15,93 @@ public class ProductsApiTests
         _client = factory.CreateClient();
     }
 
+    private async Task AuthenticateAsync()
+    {
+        var username = "testuser_" + Guid.NewGuid();
+
+        var registerDto = new RegisterDto
+        {
+            Username = username,
+            Password = "Test123456"
+        };
+
+        var registerResponse =
+            await _client.PostAsJsonAsync(
+                "/api/auth/register",
+                registerDto
+            );
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registerResponse.StatusCode
+        );
+
+        var loginDto = new LoginDto
+        {
+            Username = username,
+            Password = "Test123456"
+        };
+
+        var loginResponse =
+            await _client.PostAsJsonAsync(
+                "/api/auth/login",
+                loginDto
+            );
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            loginResponse.StatusCode
+        );
+
+        var loginResult =
+            await loginResponse.Content
+                .ReadFromJsonAsync<LoginResponseDto>();
+
+        Assert.NotNull(loginResult);
+        Assert.False(string.IsNullOrWhiteSpace(loginResult.Token));
+
+        _client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                loginResult.Token
+            );
+    }
+
     [Fact]
-    public async Task GetProducts_ShouldReturnSuccessStatusCode()
+    public async Task GetProducts_WithoutToken_ShouldReturnUnauthorized()
     {
         // Act
         var response = await _client.GetAsync("/api/products");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode
+        );
+    }
+
+    [Fact]
+    public async Task GetProducts_WithToken_ShouldReturnSuccessStatusCode()
+    {
+        // Arrange
+        await AuthenticateAsync();
+
+        // Act
+        var response = await _client.GetAsync("/api/products");
+
+        // Assert
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode
+        );
     }
 
     [Fact]
     public async Task CreateProduct_ShouldReturnCreated()
     {
         // Arrange
+        await AuthenticateAsync();
+
         var product = new ProductCreateDto
         {
             Name = "Test Laptop",
@@ -36,13 +110,20 @@ public class ProductsApiTests
 
         // Act
         var response =
-            await _client.PostAsJsonAsync("/api/products", product);
+            await _client.PostAsJsonAsync(
+                "/api/products",
+                product
+            );
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Created,
+            response.StatusCode
+        );
 
         var createdProduct =
-            await response.Content.ReadFromJsonAsync<ProductResponseDto>();
+            await response.Content
+                .ReadFromJsonAsync<ProductResponseDto>();
 
         Assert.NotNull(createdProduct);
         Assert.Equal("Test Laptop", createdProduct.Name);
@@ -53,6 +134,8 @@ public class ProductsApiTests
     public async Task GetProductById_ShouldReturnProduct()
     {
         // Arrange
+        await AuthenticateAsync();
+
         var product = new ProductCreateDto
         {
             Name = "Test Phone",
@@ -60,7 +143,10 @@ public class ProductsApiTests
         };
 
         var createResponse =
-            await _client.PostAsJsonAsync("/api/products", product);
+            await _client.PostAsJsonAsync(
+                "/api/products",
+                product
+            );
 
         var createdProduct =
             await createResponse.Content
@@ -75,7 +161,10 @@ public class ProductsApiTests
             );
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode
+        );
 
         var returnedProduct =
             await response.Content
@@ -91,6 +180,8 @@ public class ProductsApiTests
     public async Task UpdateProduct_ShouldReturnNoContent()
     {
         // Arrange
+        await AuthenticateAsync();
+
         var product = new ProductCreateDto
         {
             Name = "Old Product",
@@ -98,7 +189,10 @@ public class ProductsApiTests
         };
 
         var createResponse =
-            await _client.PostAsJsonAsync("/api/products", product);
+            await _client.PostAsJsonAsync(
+                "/api/products",
+                product
+            );
 
         var createdProduct =
             await createResponse.Content
@@ -125,7 +219,6 @@ public class ProductsApiTests
             response.StatusCode
         );
 
-        // Güncellemenin gerçekten yapıldığını kontrol et
         var getResponse =
             await _client.GetAsync(
                 $"/api/products/{createdProduct.Id}"
@@ -144,6 +237,8 @@ public class ProductsApiTests
     public async Task DeleteProduct_ShouldReturnNoContent()
     {
         // Arrange
+        await AuthenticateAsync();
+
         var product = new ProductCreateDto
         {
             Name = "Product To Delete",
@@ -151,7 +246,10 @@ public class ProductsApiTests
         };
 
         var createResponse =
-            await _client.PostAsJsonAsync("/api/products", product);
+            await _client.PostAsJsonAsync(
+                "/api/products",
+                product
+            );
 
         var createdProduct =
             await createResponse.Content
@@ -171,7 +269,6 @@ public class ProductsApiTests
             deleteResponse.StatusCode
         );
 
-        // Gerçekten silindiğini kontrol et
         var getResponse =
             await _client.GetAsync(
                 $"/api/products/{createdProduct.Id}"

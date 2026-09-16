@@ -1,11 +1,13 @@
 using BackendEgitimiYeni.DTOs;
 using BackendEgitimiYeni.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BackendEgitimiYeni.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ProductsController : ControllerBase
 {
     private readonly IProductService _productService;
