@@ -1,4 +1,7 @@
+using BackendEgitimiYeni.Data;
 using BackendEgitimiYeni.DTOs;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -9,20 +12,26 @@ public class ProductsApiTests
     : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
 
     public ProductsApiTests(CustomWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
-    private async Task AuthenticateAsync()
+    private async Task<string> RegisterAndLoginAsync(
+        string role = "User")
     {
-        var username = "testuser_" + Guid.NewGuid();
+        var username =
+            role.ToLower() + "_" + Guid.NewGuid();
+
+        var password = "Test123456";
 
         var registerDto = new RegisterDto
         {
             Username = username,
-            Password = "Test123456"
+            Password = password
         };
 
         var registerResponse =
@@ -36,10 +45,27 @@ public class ProductsApiTests
             registerResponse.StatusCode
         );
 
+        if (role == "Admin")
+        {
+            using var scope =
+                _factory.Services.CreateScope();
+
+            var context =
+                scope.ServiceProvider
+                    .GetRequiredService<AppDbContext>();
+
+            var user = await context.Users
+                .FirstAsync(u => u.Username == username);
+
+            user.Role = "Admin";
+
+            await context.SaveChangesAsync();
+        }
+
         var loginDto = new LoginDto
         {
             Username = username,
-            Password = "Test123456"
+            Password = password
         };
 
         var loginResponse =
@@ -53,27 +79,36 @@ public class ProductsApiTests
             loginResponse.StatusCode
         );
 
-        var loginResult =
+        var result =
             await loginResponse.Content
                 .ReadFromJsonAsync<LoginResponseDto>();
 
-        Assert.NotNull(loginResult);
-        Assert.False(string.IsNullOrWhiteSpace(loginResult.Token));
+        Assert.NotNull(result);
 
+        Assert.False(
+            string.IsNullOrWhiteSpace(result.Token)
+        );
+
+        return result.Token;
+    }
+
+    private void SetToken(string token)
+    {
         _client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue(
                 "Bearer",
-                loginResult.Token
+                token
             );
     }
 
     [Fact]
     public async Task GetProducts_WithoutToken_ShouldReturnUnauthorized()
     {
-        // Act
-        var response = await _client.GetAsync("/api/products");
+        _client.DefaultRequestHeaders.Authorization = null;
 
-        // Assert
+        var response =
+            await _client.GetAsync("/api/products");
+
         Assert.Equal(
             HttpStatusCode.Unauthorized,
             response.StatusCode
@@ -81,15 +116,16 @@ public class ProductsApiTests
     }
 
     [Fact]
-    public async Task GetProducts_WithToken_ShouldReturnSuccessStatusCode()
+    public async Task GetProducts_WithUserToken_ShouldReturnOk()
     {
-        // Arrange
-        await AuthenticateAsync();
+        var token =
+            await RegisterAndLoginAsync("User");
 
-        // Act
-        var response = await _client.GetAsync("/api/products");
+        SetToken(token);
 
-        // Assert
+        var response =
+            await _client.GetAsync("/api/products");
+
         Assert.Equal(
             HttpStatusCode.OK,
             response.StatusCode
@@ -97,25 +133,51 @@ public class ProductsApiTests
     }
 
     [Fact]
-    public async Task CreateProduct_ShouldReturnCreated()
+    public async Task CreateProduct_WithUserRole_ShouldReturnForbidden()
     {
-        // Arrange
-        await AuthenticateAsync();
+        var token =
+            await RegisterAndLoginAsync("User");
+
+        SetToken(token);
 
         var product = new ProductCreateDto
         {
-            Name = "Test Laptop",
-            Price = 25000
+            Name = "User Product",
+            Price = 1000
         };
 
-        // Act
         var response =
             await _client.PostAsJsonAsync(
                 "/api/products",
                 product
             );
 
-        // Assert
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            response.StatusCode
+        );
+    }
+
+    [Fact]
+    public async Task CreateProduct_WithAdminRole_ShouldReturnCreated()
+    {
+        var token =
+            await RegisterAndLoginAsync("Admin");
+
+        SetToken(token);
+
+        var product = new ProductCreateDto
+        {
+            Name = "Admin Product",
+            Price = 25000
+        };
+
+        var response =
+            await _client.PostAsJsonAsync(
+                "/api/products",
+                product
+            );
+
         Assert.Equal(
             HttpStatusCode.Created,
             response.StatusCode
@@ -126,63 +188,27 @@ public class ProductsApiTests
                 .ReadFromJsonAsync<ProductResponseDto>();
 
         Assert.NotNull(createdProduct);
-        Assert.Equal("Test Laptop", createdProduct.Name);
-        Assert.Equal(25000, createdProduct.Price);
-    }
 
-    [Fact]
-    public async Task GetProductById_ShouldReturnProduct()
-    {
-        // Arrange
-        await AuthenticateAsync();
-
-        var product = new ProductCreateDto
-        {
-            Name = "Test Phone",
-            Price = 15000
-        };
-
-        var createResponse =
-            await _client.PostAsJsonAsync(
-                "/api/products",
-                product
-            );
-
-        var createdProduct =
-            await createResponse.Content
-                .ReadFromJsonAsync<ProductResponseDto>();
-
-        Assert.NotNull(createdProduct);
-
-        // Act
-        var response =
-            await _client.GetAsync(
-                $"/api/products/{createdProduct.Id}"
-            );
-
-        // Assert
         Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode
+            "Admin Product",
+            createdProduct.Name
         );
 
-        var returnedProduct =
-            await response.Content
-                .ReadFromJsonAsync<ProductResponseDto>();
-
-        Assert.NotNull(returnedProduct);
-        Assert.Equal(createdProduct.Id, returnedProduct.Id);
-        Assert.Equal("Test Phone", returnedProduct.Name);
-        Assert.Equal(15000, returnedProduct.Price);
+        Assert.Equal(
+            25000,
+            createdProduct.Price
+        );
     }
 
     [Fact]
-    public async Task UpdateProduct_ShouldReturnNoContent()
+    public async Task UpdateProduct_WithAdminRole_ShouldReturnNoContent()
     {
-        // Arrange
-        await AuthenticateAsync();
+        var token =
+            await RegisterAndLoginAsync("Admin");
 
-        var product = new ProductCreateDto
+        SetToken(token);
+
+        var createDto = new ProductCreateDto
         {
             Name = "Old Product",
             Price = 1000
@@ -191,8 +217,13 @@ public class ProductsApiTests
         var createResponse =
             await _client.PostAsJsonAsync(
                 "/api/products",
-                product
+                createDto
             );
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode
+        );
 
         var createdProduct =
             await createResponse.Content
@@ -206,14 +237,12 @@ public class ProductsApiTests
             Price = 2000
         };
 
-        // Act
         var response =
             await _client.PutAsJsonAsync(
                 $"/api/products/{createdProduct.Id}",
                 updateDto
             );
 
-        // Assert
         Assert.Equal(
             HttpStatusCode.NoContent,
             response.StatusCode
@@ -224,22 +253,37 @@ public class ProductsApiTests
                 $"/api/products/{createdProduct.Id}"
             );
 
+        Assert.Equal(
+            HttpStatusCode.OK,
+            getResponse.StatusCode
+        );
+
         var updatedProduct =
             await getResponse.Content
                 .ReadFromJsonAsync<ProductResponseDto>();
 
         Assert.NotNull(updatedProduct);
-        Assert.Equal("Updated Product", updatedProduct.Name);
-        Assert.Equal(2000, updatedProduct.Price);
+
+        Assert.Equal(
+            "Updated Product",
+            updatedProduct.Name
+        );
+
+        Assert.Equal(
+            2000,
+            updatedProduct.Price
+        );
     }
 
     [Fact]
-    public async Task DeleteProduct_ShouldReturnNoContent()
+    public async Task DeleteProduct_WithAdminRole_ShouldReturnNoContent()
     {
-        // Arrange
-        await AuthenticateAsync();
+        var token =
+            await RegisterAndLoginAsync("Admin");
 
-        var product = new ProductCreateDto
+        SetToken(token);
+
+        var createDto = new ProductCreateDto
         {
             Name = "Product To Delete",
             Price = 500
@@ -248,8 +292,13 @@ public class ProductsApiTests
         var createResponse =
             await _client.PostAsJsonAsync(
                 "/api/products",
-                product
+                createDto
             );
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode
+        );
 
         var createdProduct =
             await createResponse.Content
@@ -257,13 +306,11 @@ public class ProductsApiTests
 
         Assert.NotNull(createdProduct);
 
-        // Act
         var deleteResponse =
             await _client.DeleteAsync(
                 $"/api/products/{createdProduct.Id}"
             );
 
-        // Assert
         Assert.Equal(
             HttpStatusCode.NoContent,
             deleteResponse.StatusCode

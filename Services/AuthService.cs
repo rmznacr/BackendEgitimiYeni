@@ -41,7 +41,8 @@ public class AuthService : IAuthService
 
         var user = new User
         {
-            Username = dto.Username
+            Username = dto.Username,
+            Role = "User"
         };
 
         user.PasswordHash = _passwordHasher.HashPassword(
@@ -112,6 +113,11 @@ public class AuthService : IAuthService
             new Claim(
                 ClaimTypes.Name,
                 user.Username
+            ),
+
+            new Claim(
+                ClaimTypes.Role,
+                user.Role
             )
         };
 
