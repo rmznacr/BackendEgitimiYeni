@@ -37,16 +37,19 @@ public class ExceptionMiddleware
         HttpContext context)
     {
         context.Response.ContentType = "application/json";
+
         context.Response.StatusCode =
             (int)HttpStatusCode.InternalServerError;
 
         var response = new
         {
             statusCode = context.Response.StatusCode,
-            message = "Sunucuda beklenmeyen bir hata oluştu."
+            message =
+                "Sunucuda beklenmeyen bir hata oluştu."
         };
 
-        var json = JsonSerializer.Serialize(response);
+        var json =
+            JsonSerializer.Serialize(response);
 
         await context.Response.WriteAsync(json);
     }

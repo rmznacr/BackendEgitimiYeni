@@ -35,10 +35,21 @@ public class ProductsApiTests
         };
 
         var registerResponse =
-            await _client.PostAsJsonAsync(
-                "/api/auth/register",
-                registerDto
-            );
+    await _client.PostAsJsonAsync(
+        "/api/auth/register",
+        registerDto
+    );
+
+        var registerError =
+            await registerResponse.Content.ReadAsStringAsync();
+
+        Console.WriteLine(
+            $"REGISTER STATUS: {registerResponse.StatusCode}"
+        );
+
+        Console.WriteLine(
+            $"REGISTER RESPONSE: {registerError}"
+        );
 
         Assert.Equal(
             HttpStatusCode.Created,
@@ -55,7 +66,9 @@ public class ProductsApiTests
                     .GetRequiredService<AppDbContext>();
 
             var user = await context.Users
-                .FirstAsync(u => u.Username == username);
+                .FirstAsync(
+                    u => u.Username == username
+                );
 
             user.Role = "Admin";
 
@@ -107,7 +120,9 @@ public class ProductsApiTests
         _client.DefaultRequestHeaders.Authorization = null;
 
         var response =
-            await _client.GetAsync("/api/products");
+            await _client.GetAsync(
+                "/api/v1/products"
+            );
 
         Assert.Equal(
             HttpStatusCode.Unauthorized,
@@ -124,7 +139,9 @@ public class ProductsApiTests
         SetToken(token);
 
         var response =
-            await _client.GetAsync("/api/products");
+            await _client.GetAsync(
+                "/api/v1/products"
+            );
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -148,7 +165,7 @@ public class ProductsApiTests
 
         var response =
             await _client.PostAsJsonAsync(
-                "/api/products",
+                "/api/v1/products",
                 product
             );
 
@@ -174,7 +191,7 @@ public class ProductsApiTests
 
         var response =
             await _client.PostAsJsonAsync(
-                "/api/products",
+                "/api/v1/products",
                 product
             );
 
@@ -216,7 +233,7 @@ public class ProductsApiTests
 
         var createResponse =
             await _client.PostAsJsonAsync(
-                "/api/products",
+                "/api/v1/products",
                 createDto
             );
 
@@ -239,7 +256,7 @@ public class ProductsApiTests
 
         var response =
             await _client.PutAsJsonAsync(
-                $"/api/products/{createdProduct.Id}",
+                $"/api/v1/products/{createdProduct.Id}",
                 updateDto
             );
 
@@ -250,7 +267,7 @@ public class ProductsApiTests
 
         var getResponse =
             await _client.GetAsync(
-                $"/api/products/{createdProduct.Id}"
+                $"/api/v1/products/{createdProduct.Id}"
             );
 
         Assert.Equal(
@@ -291,7 +308,7 @@ public class ProductsApiTests
 
         var createResponse =
             await _client.PostAsJsonAsync(
-                "/api/products",
+                "/api/v1/products",
                 createDto
             );
 
@@ -308,7 +325,7 @@ public class ProductsApiTests
 
         var deleteResponse =
             await _client.DeleteAsync(
-                $"/api/products/{createdProduct.Id}"
+                $"/api/v1/products/{createdProduct.Id}"
             );
 
         Assert.Equal(
@@ -318,7 +335,7 @@ public class ProductsApiTests
 
         var getResponse =
             await _client.GetAsync(
-                $"/api/products/{createdProduct.Id}"
+                $"/api/v1/products/{createdProduct.Id}"
             );
 
         Assert.Equal(

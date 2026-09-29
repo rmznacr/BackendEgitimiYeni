@@ -3,7 +3,6 @@ using BackendEgitimiYeni.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -25,24 +24,6 @@ public class ExceptionMiddlewareTests
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
-
-                builder.ConfigureAppConfiguration((context, config) =>
-                {
-                    var testSettings =
-                        new Dictionary<string, string?>
-                        {
-                            ["Jwt:Key"] =
-                                "BackendEgitimiYeni-Integration-Test-Key-2026-123456789",
-
-                            ["Jwt:Issuer"] =
-                                "BackendEgitimiYeni",
-
-                            ["Jwt:Audience"] =
-                                "BackendEgitimiYeniUsers"
-                        };
-
-                    config.AddInMemoryCollection(testSettings);
-                });
 
                 builder.ConfigureServices(services =>
                 {
@@ -70,7 +51,9 @@ public class ExceptionMiddlewareTests
 
         // Act
         var response =
-            await client.GetAsync("/api/products");
+            await client.GetAsync(
+                "/api/v1/products"
+            );
 
         // Assert
         Assert.Equal(
@@ -101,7 +84,8 @@ public class ExceptionMiddlewareTests
 
     private class ThrowingProductService : IProductService
     {
-        public Task<List<ProductResponseDto>> GetAllAsync()
+        public Task<PagedResultDto<ProductResponseDto>> GetAllAsync(
+            ProductQueryDto queryDto)
         {
             throw new Exception("Test exception");
         }

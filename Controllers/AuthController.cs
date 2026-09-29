@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using BackendEgitimiYeni.DTOs;
 using BackendEgitimiYeni.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace BackendEgitimiYeni.Controllers;
 
 [ApiController]
+[ApiVersionNeutral]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
@@ -18,32 +20,37 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
-        var registered = await _authService.RegisterAsync(dto);
+        var registered =
+            await _authService.RegisterAsync(dto);
 
         if (!registered)
         {
             return Conflict(new
             {
-                message = "Bu kullanıcı adı zaten kullanılıyor."
+                message =
+                    "Bu kullanıcı adı zaten kullanılıyor."
             });
         }
 
         return StatusCode(201, new
         {
-            message = "Kullanıcı başarıyla oluşturuldu."
+            message =
+                "Kullanıcı başarıyla oluşturuldu."
         });
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
-        var result = await _authService.LoginAsync(dto);
+        var result =
+            await _authService.LoginAsync(dto);
 
         if (result is null)
         {
             return Unauthorized(new
             {
-                message = "Kullanıcı adı veya parola hatalı."
+                message =
+                    "Kullanıcı adı veya parola hatalı."
             });
         }
 
